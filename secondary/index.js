@@ -1,11 +1,30 @@
+const finalhandler = require('finalhandler');
+const http = require('http');
+const Router = require('router');
+const bodyParser = require('body-parser');
 const grpc = require('grpc')
 const messageProto = grpc.load(__dirname + '/../messages.proto');
 
 const messages = [];
 const ids = new Set()
 
-const server = new grpc.Server()
-server.addService(messageProto.MessageService.service, {
+const router = Router();
+
+router.use(bodyParser.json())
+
+router.get('/messages', (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  res.end(JSON.stringify(messages));
+});
+
+const server = http.createServer(function(req, res) {
+  router(req, res, finalhandler(req, res))
+})
+ 
+server.listen(3001)
+
+const grpcServer = new grpc.Server();
+grpcServer.addService(messageProto.MessageService.service, {
   insert: (call, callback) => {
     let message = call.request;
 
@@ -20,6 +39,5 @@ server.addService(messageProto.MessageService.service, {
 })
 
 
-server.bind('127.0.0.1:50051', grpc.ServerCredentials.createInsecure());
-console.log('server running');
-server.start();
+grpcServer.bind('127.0.0.1:50051', grpc.ServerCredentials.createInsecure());
+grpcServer.start();
