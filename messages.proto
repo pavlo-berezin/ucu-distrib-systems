@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+service MessageService {
+  rpc Insert(Message) returns (MessageResponse) {}
+}
+
+message Message {
+  string id = 1;
+  string text = 2;
+}
+
+message MessageResponse {
+  string status = 1;
+}
+

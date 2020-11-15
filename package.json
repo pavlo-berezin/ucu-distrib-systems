@@ -1,0 +1,23 @@
+{
+  "name": "ucu-distrib-systems",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pavlo-berezin/ucu-distrib-systems.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pavlo-berezin/ucu-distrib-systems/issues"
+  },
+  "homepage": "https://github.com/pavlo-berezin/ucu-distrib-systems#readme",
+  "dependencies": {
+    "grpc": "^1.24.4",
+    "shortid": "^2.2.16"
+  }
+}
