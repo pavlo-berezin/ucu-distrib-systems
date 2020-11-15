@@ -40,7 +40,7 @@ router.post('/messages', (req, res) => {
     grpcClients
       .map(client => promisify(client.insert.bind(client)))
       .map(insert => insert(message, { deadline: getDeadline() }))
-  ).then((a) => {pr
+  ).then(() => {
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify(message));
   })
