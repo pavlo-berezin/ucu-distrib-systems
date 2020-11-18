@@ -33,11 +33,10 @@ grpcServer.addService(messageProto.MessageService.service, {
       messages.push(message);
     }
 
-    console.log(messages);
     callback(null, { status: 'ok' })
   }
 })
 
 
-grpcServer.bind('127.0.0.1:50051', grpc.ServerCredentials.createInsecure());
+grpcServer.bind('secondary:50051', grpc.ServerCredentials.createInsecure());
 grpcServer.start();
