@@ -5,6 +5,8 @@ const bodyParser = require('body-parser');
 const grpc = require('grpc')
 const messageProto = grpc.load(__dirname + '/../messages.proto');
 
+const args = require('yargs').argv;
+
 const messages = [];
 const ids = new Set()
 
@@ -38,5 +40,5 @@ grpcServer.addService(messageProto.MessageService.service, {
 })
 
 
-grpcServer.bind('secondary:50051', grpc.ServerCredentials.createInsecure());
+grpcServer.bind(args.grpc, grpc.ServerCredentials.createInsecure());
 grpcServer.start();

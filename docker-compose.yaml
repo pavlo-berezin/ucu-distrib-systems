@@ -5,16 +5,25 @@ services:
     build:
       context: .
       dockerfile: ./main/Dockerfile
-    command: ['node', 'main/index.js', '--secondary=secondary:50051']
+    command: ['node', 'main/index.js', '--secondary=secondary:50051', '--secondary=secondary2:50052']
     ports:
       - 3000:3000
     depends_on:
       - secondary
+      - secondary2
   secondary:
     image: secondary
     build:
       context: .
       dockerfile: ./secondary/Dockerfile
-    command: ['node', 'secondary/index.js']
+    command: ['node', 'secondary/index.js', '--grpc=secondary:50051']
     ports:
-      - 3001:3001  
+      - 3001:3001
+  secondary2:
+    image: secondary2
+    build:
+      context: .
+      dockerfile: ./secondary/Dockerfile
+    command: ['node', 'secondary/index.js', '--grpc=secondary2:50052']
+    ports:
+      - 3002:3001
