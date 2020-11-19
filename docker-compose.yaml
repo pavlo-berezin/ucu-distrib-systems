@@ -1,0 +1,20 @@
+version: '3'
+services:
+  main:
+    image: main
+    build:
+      context: .
+      dockerfile: ./main/Dockerfile
+    command: ['node', 'main/index.js', '--secondary=secondary:50051']
+    ports:
+      - 3000:3000
+    depends_on:
+      - secondary
+  secondary:
+    image: secondary
+    build:
+      context: .
+      dockerfile: ./secondary/Dockerfile
+    command: ['node', 'secondary/index.js']
+    ports:
+      - 3001:3001  

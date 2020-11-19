@@ -9,7 +9,6 @@ const { promisify } = require('util');
 
 const messageProto = grpc.load(__dirname + '/../messages.proto');
 const secondaries = Array.isArray(args.secondary) ? args.secondary : [args.secondary];
-
 const grpcClients = secondaries.map(url => new messageProto.MessageService(url, grpc.credentials.createInsecure()));
 
 const getDeadline = (ttl = 5000) => new Date(Date.now() + ttl);
