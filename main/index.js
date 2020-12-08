@@ -13,7 +13,7 @@ const grpcClients = secondaries.map(url => new messageProto.MessageService(url, 
 
 const DEFAULT_CONCERN = 2;
 
-const getDeadline = (ttl = 5000) => new Date(Date.now() + ttl);
+const getDeadline = (ttl = 50) => new Date(Date.now() + ttl);
 
 const promisesWithConcern = (promises, concernN) => {
   return new Promise((resolve, reject) => {
