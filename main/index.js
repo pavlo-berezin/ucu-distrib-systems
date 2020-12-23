@@ -38,7 +38,7 @@ const insertMessage = (client, message) => {
       }).catch(e => {
         console.log(`${e.code} - ${e.details}`);
 
-        if (e.code == 14) {
+        if (e.code == 4 || e.code == 14) {
           return retryService.check(client);
         }
 
