@@ -7,34 +7,34 @@ class RetryService {
     this.messages = messages;
   }
 
-  statuses = {}
-  queues = {}
+  checks = {};
 
   check(client) {
-    if (!this.statuses[client.url]) {
-      this.statuses[client.url] = true;
-
+    if (!this.checks[client.url]) {
       const clientCheck = promisify(client.health.check.bind(client.health));
 
-      pRetry(() => clientCheck(new health.messages.HealthCheckRequest()), {
+      this.checks[client.url] = pRetry(() => clientCheck(new health.messages.HealthCheckRequest()), {
         onFailedAttempt: error => {
-          console.log(`[${client.url}] Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+          console.log(`[${client.url}] Attempt ${error.attemptNumber} failed.`);
         },
-        retries: 10
+        maxTimeout: 60 * 1000,
+        forever: true,
       }).then(async () => {
         console.log(`[${client.url}] Connected!`)
         const insertMany = promisify(client.messages.insertMany.bind(client.messages));
 
-        insertMany(this.messages).catch(e => {
+        let result = await insertMany(this.messages).catch(e => {
           this.check(client);
-        })
+        });
 
-        this.statuses[client.url] = false;
+        this.checks[client.url] = null;
+
+        return result;
       })
     }
+
+    return this.checks[client.url];
   }
-
-
 }
 
 module.exports = RetryService;

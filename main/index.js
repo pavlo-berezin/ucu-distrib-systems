@@ -31,12 +31,14 @@ const insertMessage = (client, message) => {
 
   return pRetry(() => {
     return insert(message, { deadline: getDeadline() })
-      .then(({ status }) => {
-        if (status !== 'ok') {
+      .then((message) => {
+        if (message.status !== 'ok') {
           throw new Error('status not ok');
         }
+
+        return message;
       }).catch(e => {
-        console.log(`${e.code} - ${e.details}`);
+        console.log(`[Insert fail] ${e.code} - ${e.details}`);
 
         if (e.code == 4 || e.code == 14) {
           return retryService.check(client);
@@ -46,9 +48,10 @@ const insertMessage = (client, message) => {
       })
   }, {
     onFailedAttempt: error => {
-      console.log(`[${message.id}] Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+      console.log(`[${message.id}] Attempt ${error.attemptNumber} failed.`);
     },
-    retries: 10
+    maxTimeout: 60 * 1000,
+    forever: true,
   })
 }
 
@@ -120,7 +123,5 @@ router.post('/messages', (req, res) => {
 const server = http.createServer(function (req, res) {
   router(req, res, finalhandler(req, res))
 })
-
-console.log('444444');
 
 server.listen(3000)
