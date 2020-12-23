@@ -6,6 +6,7 @@ const grpc = require('grpc')
 const messageProto = grpc.load(__dirname + '/../messages.proto');
 const { promisify } = require('util');
 const args = require('yargs').argv;
+let health = require('grpc-health-check');
 
 const messages = [];
 const ids = new Set()
@@ -23,30 +24,53 @@ router.get('/messages', (req, res) => {
   res.end(JSON.stringify(messages));
 });
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(function (req, res) {
   router(req, res, finalhandler(req, res))
 })
 
- 
-server.listen(3001)
 
+server.listen(3001)
 const grpcServer = new grpc.Server();
+
 grpcServer.addService(messageProto.MessageService.service, {
   insert: (call, callback) => {
     let message = call.request;
-    
+
     sleep(timeDelay).then(() => {
       callback(null, { status: 'ok' })
     });
-    
+
 
     if (!ids.has(message.id)) {
       ids.add(message.id);
       messages.push(message);
     }
+    console.log(`Insert message with id: ${message.id}`)
+  },
+  insertMany: (call, callback) => {
+    let messageList = call.request;
 
+    sleep(timeDelay).then(() => {
+      callback(null, { status: 'ok' })
+    });
+
+    messageList.messages.forEach(message => {
+      if (!ids.has(message.id)) {
+        ids.add(message.id);
+        messages.push(message);
+      }
+    })
+
+    console.log(`InsertMany messages with ids: ${messageList.messages.map(m => m.id)}`);
   }
 })
+
+const statusMap = {
+  "": proto.grpc.health.v1.HealthCheckResponse.ServingStatus.SERVING,
+};
+let healthImpl = new health.Implementation(statusMap);
+
+grpcServer.addService(health.service, healthImpl);
 
 
 grpcServer.bind(args.grpc, grpc.ServerCredentials.createInsecure());

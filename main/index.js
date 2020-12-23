@@ -6,14 +6,51 @@ const grpc = require('grpc');
 const shortid = require('shortid');
 const args = require('yargs').argv;
 const { promisify } = require('util');
-
+const health = require('grpc-health-check');
+const RetryService = require('./retry');
+const pRetry = require('p-retry');
 const messageProto = grpc.load(__dirname + '/../messages.proto');
 const secondaries = Array.isArray(args.secondary) ? args.secondary : [args.secondary];
-const grpcClients = secondaries.map(url => new messageProto.MessageService(url, grpc.credentials.createInsecure()));
+
+const messages = [];
+
+const retryService = new RetryService(messages);
+
+const grpcClients = secondaries.map(url => ({
+  url,
+  messages: new messageProto.MessageService(url, grpc.credentials.createInsecure()),
+  health: new health.Client(url, grpc.credentials.createInsecure())
+}));
 
 const DEFAULT_CONCERN = 2;
 
-const getDeadline = (ttl = 50) => new Date(Date.now() + ttl);
+const getDeadline = (ttl = 500) => new Date(Date.now() + ttl);
+
+const insertMessage = (client, message) => {
+  const insert = promisify(client.messages.insert.bind(client.messages));
+
+  return pRetry(() => {
+    return insert(message, { deadline: getDeadline() })
+      .then(({ status }) => {
+        if (status !== 'ok') {
+          throw new Error('status not ok');
+        }
+      }).catch(e => {
+        console.log(`${e.code} - ${e.details}`);
+
+        if (e.code == 14) {
+          return retryService.check(client);
+        }
+
+        throw e;
+      })
+  }, {
+    onFailedAttempt: error => {
+      console.log(`[${message.id}] Attempt ${error.attemptNumber} failed. There are ${error.retriesLeft} retries left.`);
+    },
+    retries: 10
+  })
+}
 
 const promisesWithConcern = (promises, concernN) => {
   return new Promise((resolve, reject) => {
@@ -44,7 +81,6 @@ const promisesWithConcern = (promises, concernN) => {
   });
 };
 
-const messages = [];
 const ids = new Set();
 
 const router = Router();
@@ -69,14 +105,7 @@ router.post('/messages', (req, res) => {
   messages.push(message);
 
   promisesWithConcern(
-    grpcClients
-      .map(client => promisify(client.insert.bind(client)))
-      .map(insert => insert(message, { deadline: getDeadline() }))
-      .map(p => p.then(({ status }) => {
-        if (status !== 'ok') {
-          throw new Error('status not ok');
-        }
-      })),
+    grpcClients.map(client => insertMessage(client, message)),
     concernN - 1
   ).then(() => {
     res.setHeader('Content-Type', 'application/json')
@@ -91,5 +120,7 @@ router.post('/messages', (req, res) => {
 const server = http.createServer(function (req, res) {
   router(req, res, finalhandler(req, res))
 })
+
+console.log('444444');
 
 server.listen(3000)
