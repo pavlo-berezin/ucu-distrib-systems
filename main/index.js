@@ -24,7 +24,7 @@ const grpcClients = secondaries.map(url => ({
 
 const DEFAULT_CONCERN = 2;
 
-const getDeadline = (ttl = 500) => new Date(Date.now() + ttl);
+const getDeadline = (ttl = 200) => new Date(Date.now() + ttl);
 
 const insertMessage = (client, message) => {
   const insert = promisify(client.messages.insert.bind(client.messages));
@@ -95,17 +95,52 @@ router.get('/messages', (req, res) => {
   res.end(JSON.stringify(messages));
 });
 
-router.post('/messages', (req, res) => {
+router.get('/health', (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  Promise.all(
+    grpcClients.map(async (client) => {
+      const clientCheck = promisify(client.health.check.bind(client.health));
+
+      try {
+        await clientCheck(new health.messages.HealthCheckRequest())
+        return { url: client.url, status: 'healthy' };
+      } catch {
+        return { url: client.url, status: 'unhealthy' };
+      }
+    })
+  ).then(results => {
+    res.end(JSON.stringify(results))
+  })
+});
+
+router.post('/messages', async (req, res) => {
   const { text } = req.body;
   const concernN = req.headers.write_concern || DEFAULT_CONCERN;
+  
+  let completed = 0;
+  for (let client of grpcClients) {
+    const clientCheck = promisify(client.health.check.bind(client.health));
+
+    try {
+      await clientCheck(new health.messages.HealthCheckRequest())
+      completed++;
+    } finally { }
+  }
+
+  if (completed < concernN) {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify("Quorum not reached"));
+  }  
 
   const message = {
     id: shortid.generate(),
+    time: Date.now(),
     text
   };
 
   ids.add(message.id);
   messages.push(message);
+  messages.sort((a, b) => a.time - b.time);
 
   promisesWithConcern(
     grpcClients.map(client => insertMessage(client, message)),
