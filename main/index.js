@@ -113,7 +113,7 @@ router.get('/health', (req, res) => {
   })
 });
 
-router.post('/messages', (req, res) => {
+router.post('/messages', async (req, res) => {
   const { text } = req.body;
   const concernN = req.headers.write_concern || DEFAULT_CONCERN;
   
@@ -122,7 +122,7 @@ router.post('/messages', (req, res) => {
     const clientCheck = promisify(client.health.check.bind(client.health));
 
     try {
-      clientCheck(new health.messages.HealthCheckRequest())
+      await clientCheck(new health.messages.HealthCheckRequest())
       completed++;
     } finally { }
   }
