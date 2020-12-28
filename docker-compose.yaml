@@ -24,6 +24,6 @@ services:
     build:
       context: .
       dockerfile: ./secondary/Dockerfile
-    command: ['node', 'secondary/index.js', '--grpc=secondary2:50052', '--delay=100']
+    command: ['node', 'secondary/index.js', '--grpc=secondary2:50052', '--delay', '100']
     ports:
       - 3002:3001

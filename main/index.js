@@ -24,7 +24,7 @@ const grpcClients = secondaries.map(url => ({
 
 const DEFAULT_CONCERN = 2;
 
-const getDeadline = (ttl = 500) => new Date(Date.now() + ttl);
+const getDeadline = (ttl = 200) => new Date(Date.now() + ttl);
 
 const insertMessage = (client, message) => {
   const insert = promisify(client.messages.insert.bind(client.messages));
@@ -95,17 +95,27 @@ router.get('/messages', (req, res) => {
   res.end(JSON.stringify(messages));
 });
 
+router.get('/health', (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  //promisify(client.messages.insert.bind(client.messages));
+
+  Promise.all(grpcClients.map(x => x.health).map(x => promisify(x.check.bind(x.check))).map(check => check(new health.messages.HealthCheckRequest()))).then(x => console.log(x)).catch();
+  res.end(JSON.stringify(grpcClients.map(x => x.health)));
+}); 
+
 router.post('/messages', (req, res) => {
   const { text } = req.body;
   const concernN = req.headers.write_concern || DEFAULT_CONCERN;
 
   const message = {
     id: shortid.generate(),
+    time: Date.now(),
     text
   };
 
   ids.add(message.id);
   messages.push(message);
+  messages.sort((a, b) => a.time - b.time);
 
   promisesWithConcern(
     grpcClients.map(client => insertMessage(client, message)),

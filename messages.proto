@@ -8,6 +8,7 @@ service MessageService {
 message Message {
   string id = 1;
   string text = 2;
+  int64 time = 3;
 }
 
 message MessageList {
