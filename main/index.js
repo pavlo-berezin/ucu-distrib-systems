@@ -97,15 +97,40 @@ router.get('/messages', (req, res) => {
 
 router.get('/health', (req, res) => {
   res.setHeader('Content-Type', 'application/json')
-  //promisify(client.messages.insert.bind(client.messages));
+  Promise.all(
+    grpcClients.map(async (client) => {
+      const clientCheck = promisify(client.health.check.bind(client.health));
 
-  Promise.all(grpcClients.map(x => x.health).map(x => promisify(x.check.bind(x.check))).map(check => check(new health.messages.HealthCheckRequest()))).then(x => console.log(x)).catch();
-  res.end(JSON.stringify(grpcClients.map(x => x.health)));
-}); 
+      try {
+        await clientCheck(new health.messages.HealthCheckRequest())
+        return { url: client.url, status: 'healthy' };
+      } catch {
+        return { url: client.url, status: 'unhealthy' };
+      }
+    })
+  ).then(results => {
+    res.end(JSON.stringify(results))
+  })
+});
 
 router.post('/messages', (req, res) => {
   const { text } = req.body;
   const concernN = req.headers.write_concern || DEFAULT_CONCERN;
+  
+  let completed = 0;
+  for (let client of grpcClients) {
+    const clientCheck = promisify(client.health.check.bind(client.health));
+
+    try {
+      clientCheck(new health.messages.HealthCheckRequest())
+      completed++;
+    } finally { }
+  }
+
+  if (completed < concernN) {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify("Quorum not reached"));
+  }  
 
   const message = {
     id: shortid.generate(),
