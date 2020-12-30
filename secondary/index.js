@@ -19,8 +19,16 @@ const sleep = promisify(setTimeout);
 router.use(bodyParser.json())
 
 router.get('/messages', (req, res) => {
+  const incosistentI = messages.findIndex((message, i, arr) => {
+    if (i === 0) { return false }
+  
+    return message.id - arr[i - 1].id > 1; 
+  });
+
+  const messagesToReturn = incosistentI === -1 ? messages : messages.slice(0, incosistentI);
+
   res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify(messages));
+  res.end(JSON.stringify(messagesToReturn));
 });
 
 const server = http.createServer(function (req, res) {

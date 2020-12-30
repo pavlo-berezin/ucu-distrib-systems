@@ -3,7 +3,6 @@ const http = require('http');
 const Router = require('router');
 const bodyParser = require('body-parser');
 const grpc = require('grpc');
-const shortid = require('shortid');
 const args = require('yargs').argv;
 const { promisify } = require('util');
 const health = require('grpc-health-check');
@@ -13,6 +12,11 @@ const messageProto = grpc.load(__dirname + '/../messages.proto');
 const secondaries = Array.isArray(args.secondary) ? args.secondary : [args.secondary];
 
 const messages = [];
+
+const idGenerator = (() => {
+  let count = 1;
+  return () => count++
+})();
 
 const retryService = new RetryService(messages);
 
@@ -91,8 +95,16 @@ const router = Router();
 router.use(bodyParser.json())
 
 router.get('/messages', (req, res) => {
+  const incosistentI = messages.findIndex((message, i, arr) => {
+    if (i === 0) { return false }
+  
+    return message.id - arr[i - 1].id > 1; 
+  });
+
+  const messagesToReturn = incosistentI === -1 ? messages : messages.slice(0, incosistentI);
+
   res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify(messages));
+  res.end(JSON.stringify(messagesToReturn));
 });
 
 router.get('/health', (req, res) => {
@@ -116,24 +128,33 @@ router.get('/health', (req, res) => {
 router.post('/messages', async (req, res) => {
   const { text } = req.body;
   const concernN = req.headers.write_concern || DEFAULT_CONCERN;
-  
-  let completed = 0;
+  const total = 1 + grpcClients.length;
+
+  if (concernN > total) {
+    res.end('Concern cannot be reached');
+    return;
+  }
+
+  let healthy = 1;
+
   for (let client of grpcClients) {
     const clientCheck = promisify(client.health.check.bind(client.health));
 
     try {
       await clientCheck(new health.messages.HealthCheckRequest())
-      completed++;
-    } finally { }
+      healthy++;
+    } catch (e) { }
   }
 
-  if (completed < concernN) {
+
+  if (healthy < Math.floor(total / 2) + 1) {
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify("Quorum not reached"));
-  }  
+    res.end('Quorum not reached');
+    return;
+  }
 
   const message = {
-    id: shortid.generate(),
+    id: idGenerator(),
     time: Date.now(),
     text
   };
