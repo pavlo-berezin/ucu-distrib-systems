@@ -24,6 +24,8 @@ class RetryService {
         const insertMany = promisify(client.messages.insertMany.bind(client.messages));
 
         let result = await insertMany(this.messages).catch(e => {
+          console.log(e);
+          this.checks[client.url] = null;
           this.check(client);
         });
 

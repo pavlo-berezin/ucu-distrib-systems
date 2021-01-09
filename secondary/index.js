@@ -20,9 +20,7 @@ router.use(bodyParser.json())
 
 router.get('/messages', (req, res) => {
   const incosistentI = messages.findIndex((message, i, arr) => {
-    if (i === 0) { return false }
-  
-    return message.id - arr[i - 1].id > 1; 
+    return message.id - (i + 1) > 0; 
   });
 
   const messagesToReturn = incosistentI === -1 ? messages : messages.slice(0, incosistentI);
@@ -42,37 +40,36 @@ const grpcServer = new grpc.Server();
 grpcServer.addService(messageProto.MessageService.service, {
   insert: (call, callback) => {
     let message = call.request;
-    
+    const delay = Math.random() * maxDelay;
+    console.log(`Delay: ${delay}`);
     sleep(Math.random() * maxDelay).then(() => {
-      callback(null, { status: 'ok' })
-    });  
-
-
-    if (!ids.has(message.id)) {
-      ids.add(message.id);
-      messages.push(message);
-    }
-
-    messages.sort((a, b) => a.time - b.time);
-    console.log(`Insert message with id: ${message.id}`)
-  },
-  insertMany: (call, callback) => {
-    let messageList = call.request;
-
-    sleep(Math.random() * maxDelay).then(() => {
-      callback(null, { status: 'ok' })
-    });
-
-
-    messageList.messages.forEach(message => {
       if (!ids.has(message.id)) {
         ids.add(message.id);
         messages.push(message);
       }
-    })
-    messages.sort((a, b) => a.time - b.time);
+  
+      messages.sort((a, b) => a.time - b.time);
+      console.log(`Insert message with id: ${message.id}`);
+      callback(null, { status: 'ok' });
+    });  
+  },
+  insertMany: (call, callback) => {
+    let messageList = call.request;
+    const delay = Math.random() * maxDelay;
+    console.log(`Delay: ${delay}`);
 
-    console.log(`InsertMany messages with ids: ${messageList.messages.map(m => m.id)}`);
+    sleep(delay).then(() => {
+      messageList.messages.forEach(message => {
+        if (!ids.has(message.id)) {
+          ids.add(message.id);
+          messages.push(message);
+        }
+      })
+      messages.sort((a, b) => a.time - b.time);
+  
+      console.log(`InsertMany messages with ids: ${messageList.messages.map(m => m.id)}`);
+      callback(null, { status: 'ok' })
+    });
   }
 })
 

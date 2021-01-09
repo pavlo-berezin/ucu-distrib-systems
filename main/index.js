@@ -28,7 +28,7 @@ const grpcClients = secondaries.map(url => ({
 
 const DEFAULT_CONCERN = 2;
 
-const getDeadline = (ttl = 200) => new Date(Date.now() + ttl);
+const getDeadline = (ttl = 30000) => new Date(Date.now() + ttl);
 
 const insertMessage = (client, message) => {
   const insert = promisify(client.messages.insert.bind(client.messages));
@@ -143,7 +143,9 @@ router.post('/messages', async (req, res) => {
     try {
       await clientCheck(new health.messages.HealthCheckRequest())
       healthy++;
-    } catch (e) { }
+    } catch (e) { 
+      retryService.check(client);
+    }
   }
 
 
